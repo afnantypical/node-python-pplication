@@ -9,7 +9,7 @@ pipeline {
     environment {
         EC2_USER = "ubuntu"
         EC2_IP = "44.213.75.159"
-        SSH_KEY = "remote"   // Your credential ID from the screenshot
+        SSH_KEY = "remote"
     }
 
     stages {
@@ -17,10 +17,63 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 git branch: params.BRANCH_NAME,
-                    url: 'https://github.com/YOUR_USERNAME/YOUR_REPO.git'
+                    url: 'https://github.com/afnantypical/node-python-pplication.git'
             }
         }
 
-        /* ------------------------ NODE DEPLOYMENT ------------------------ */
+        /* ---------------- NODE DEPLOYMENT ---------------- */
 
         stage('Deploy Node App') {
+            when { expression { params.APP_TYPE == "node" } }
+
+            steps {
+                sshagent([SSH_KEY]) {
+                    sh """
+                    scp -o StrictHostKeyChecking=no index.js ${EC2_USER}@${EC2_IP}:/var/www/nodeapp/
+
+                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_IP} '
+                        cd /var/www/nodeapp/
+                        sudo apt update -y
+                        sudo apt install -y nodejs npm
+                        npm install express axios || true
+                        nohup node index.js > node.log 2>&1 &
+                    '
+                    """
+                }
+            }
+        }
+
+        /* ---------------- PYTHON DEPLOYMENT ---------------- */
+
+        stage('Deploy Python App') {
+            when { expression { params.APP_TYPE == "python" } }
+
+            steps {
+                sshagent([SSH_KEY]) {
+                    sh """
+                    scp -o StrictHostKeyChecking=no app.py ${EC2_USER}@${EC2_IP}:/var/www/pyapp/
+
+                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_IP} '
+                        cd /var/www/pyapp/
+
+                        sudo apt install -y python3-venv
+
+                        if [ ! -d "venv" ]; then
+                            python3 -m venv venv
+                        fi
+
+                        ./venv/bin/pip install flask requests pandas
+
+                        nohup ./venv/bin/python app.py > flask.log 2>&1 &
+                    '
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success { echo "Deployment completed successfully!" }
+        failure { echo "Deployment failed!" }
+    }
+}
