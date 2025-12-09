@@ -21,8 +21,6 @@ pipeline {
             }
         }
 
-        /* ---------------- NODE DEPLOYMENT ---------------- */
-
         stage('Deploy Node App') {
             when { expression { params.APP_TYPE == "node" } }
 
@@ -43,8 +41,6 @@ pipeline {
             }
         }
 
-        /* ---------------- PYTHON DEPLOYMENT ---------------- */
-
         stage('Deploy Python App') {
             when { expression { params.APP_TYPE == "python" } }
 
@@ -63,7 +59,6 @@ pipeline {
                         fi
 
                         ./venv/bin/pip install flask requests pandas
-
                         nohup ./venv/bin/python app.py > flask.log 2>&1 &
                     '
                     """
