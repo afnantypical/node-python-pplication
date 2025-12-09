@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'BRANCH', defaultValue: 'main', description: 'Git branch to build')
+        choice(name: 'APP_TYPE', choices: ['Node', 'Python'], description: 'Select which app to deploy')
+    }
+
     environment {
         NODE_APP_DIR = "/var/www/nodeapp"
         PYTHON_APP_DIR = "/var/www/pyapp"
@@ -13,12 +18,16 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                checkout scm
-                sh 'ls -R .'  // optional: list files for debug
+                // Checkout selected branch
+                git branch: "${params.BRANCH}", url: 'https://github.com/afnantypical/node-python-pplication.git'
+                sh 'ls -R .'  // list files for debug
             }
         }
 
         stage('Deploy Node App') {
+            when {
+                expression { params.APP_TYPE == 'Node' }
+            }
             steps {
                 sshagent([env.SSH_CREDENTIALS]) {
                     sh """
@@ -31,6 +40,9 @@ pipeline {
         }
 
         stage('Deploy Python App') {
+            when {
+                expression { params.APP_TYPE == 'Python' }
+            }
             steps {
                 sshagent([env.SSH_CREDENTIALS]) {
                     sh """
@@ -41,14 +53,15 @@ pipeline {
                 }
             }
         }
+
     }
 
     post {
         success {
-            echo 'Deployment succeeded!'
+            echo "Deployment of ${params.APP_TYPE} app from branch ${params.BRANCH} succeeded!"
         }
         failure {
-            echo 'Deployment failed.'
+            echo "Deployment failed!"
         }
     }
 }
