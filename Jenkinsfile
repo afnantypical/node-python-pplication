@@ -3,7 +3,7 @@ pipeline {
 
     parameters {
         string(name: 'BRANCH', defaultValue: 'main', description: 'Git branch to build')
-        choice(name: 'APP_TYPE', choices: ['Node', 'Python'], description: 'Select which app to deploy')
+        choice(name: 'node-python-pplication', choices: ['app.py', 'node.js'], description: 'Select which app to deploy')
     }
 
     stages {
@@ -17,7 +17,7 @@ pipeline {
 
         stage('Deploy Node App') {
             when {
-                expression { params.APP_TYPE == 'Node' }
+                expression { params.node-python-pplication == 'node.js' }
             }
             steps {
                 sh """
@@ -39,7 +39,7 @@ pipeline {
 
         stage('Deploy Python App') {
             when {
-                expression { params.APP_TYPE == 'Python' }
+                expression { params.node-python-pplication == 'app.py' }
             }
             steps {
                 sh """
@@ -62,7 +62,7 @@ pipeline {
 
     post {
         success {
-            echo "Deployment of ${params.APP_TYPE} app from branch ${params.BRANCH} succeeded!"
+            echo "Deployment of ${params.node-python-pplication} app from branch ${params.BRANCH} succeeded!"
         }
         failure {
             echo "Deployment failed!"
