@@ -2,71 +2,82 @@ pipeline {
     agent any
 
     parameters {
-        choice(
-            name: 'APP_TYPE',
-            choices: ['app.py', 'node.js'],
-            description: 'Select which app to deploy'
-        )
+        choice(name: 'APP', choices: ['node.js', 'app.py'], description: 'Select which app to deploy')
+    }
+
+    environment {
+        PYTHON_VENV = "${WORKSPACE}/venv"
     }
 
     stages {
 
         stage('Checkout Code') {
             steps {
-                git branch: "main", url: 'https://github.com/afnantypical/node-python-pplication.git'
-                sh 'ls -R .'    // Debug to verify files
+                git branch: 'main', url: 'https://github.com/afnantypical/node-python-pplication.git'
+                sh 'ls -R .'
+            }
+        }
+
+        stage('Setup Environment') {
+            when { expression { params.APP == 'app.py' } }
+            steps {
+                echo 'Setting up Python environment...'
+                sh '''
+                # Install venv if missing (Debian/Ubuntu)
+                sudo apt-get update
+                sudo apt-get install -y python3-venv python3-pip python3-distutils
+
+                # Create venv
+                python3 -m venv venv
+                source venv/bin/activate
+
+                # Upgrade pip and install packages
+                pip install --upgrade pip
+                pip install flask requests pandas
+                '''
             }
         }
 
         stage('Deploy Node App') {
-            when {
-                expression { params.APP_TYPE == 'node.js' }
-            }
+            when { expression { params.APP == 'node.js' } }
             steps {
                 sh '''
-                    echo "Starting Node Application..."
+                echo "Starting Node.js app..."
 
-                    # Kill old running Node app
-                    pkill -f app.js || true
+                # Kill previous node process if exists
+                pkill -f app.js || true
 
-                    # Install dependencies if package.json exists
-                    if [ -f package.json ]; then
-                        npm install
-                    fi
+                # Install Node dependencies
+                if [ -f package.json ]; then
+                    npm install
+                fi
 
-                    # Start Node app
-                    nohup node app.js > node_app.log 2>&1 &
+                # Run Node app in background
+                nohup node app.js > node_app.log 2>&1 &
                 '''
             }
         }
 
         stage('Deploy Python App') {
-            when {
-                expression { params.APP_TYPE == 'app.py' }
-            }
+            when { expression { params.APP == 'app.py' } }
             steps {
                 sh '''
-                    echo "Starting Python Application..."
+                echo "Starting Python Flask app..."
 
-                    # Kill old Python app
-                    pkill -f app.py || true
+                # Kill previous Python process if exists
+                pkill -f app.py || true
 
-                    # Install requirements
-                    if [ -f requirements.txt ]; then
-                        pip3 install -r requirements.txt
-                    fi
-
-                    # Start Python app
-                    nohup python3 app.py > python_app.log 2>&1 &
+                # Activate venv and run app
+                source venv/bin/activate
+                nohup python3 app.py > python_app.log 2>&1 &
                 '''
             }
         }
-
     }
 
     post {
         success {
-            echo "Deployment of ${params.APP_TYPE} succeeded!"
+            echo "Deployment of ${params.APP} succeeded!"
         }
         failure {
             echo "Deployment failed!"
